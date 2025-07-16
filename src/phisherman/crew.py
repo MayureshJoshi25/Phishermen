@@ -1,7 +1,10 @@
 from crewai import Agent, Crew, Process, Task
 from crewai.project import CrewBase, agent, crew, task
-from crewai.agents.agent_builder.base_agent import BaseAgent
-from typing import List
+from tools.gmail_comprehensive_tool import GmailAnalysisTool
+from tools.checkphish_tool import CheckPhishTool
+from tools.gemini_tool import GeminiAnalysisTool
+from tools.report_tool import ReportGeneratorTool
+import os
 # If you want to run a snippet of code before or after the crew starts,
 # you can use the @before_kickoff and @after_kickoff decorators
 # https://docs.crewai.com/concepts/crews#example-crew-class-with-decorators
@@ -10,43 +13,73 @@ from typing import List
 class Phisherman():
     """Phisherman crew"""
 
-    agents: List[BaseAgent]
-    tasks: List[Task]
+    # agents: List[BaseAgent]
+    # tasks: List[Task]
+    agents_config = "config/agents.yaml"
+    tasks_config = "config/tasks.yaml"
 
-    # Learn more about YAML configuration files here:
-    # Agents: https://docs.crewai.com/concepts/agents#yaml-configuration-recommended
-    # Tasks: https://docs.crewai.com/concepts/tasks#yaml-configuration-recommended
+    def __init__(self):
+        self.gmail_creds = os.getenv("GMAIL_API_KEY")
+        self.checkphish_api = os.getenv("CHECKPHISH_API_KEY")
+        self.gemini_api = os.getenv("GEMINI_API_KEY")
+
+    @agent
+    def email_fetch_parse_agent(self) -> Agent:
+        return Agent(
+            config=self.agents_config['email_fetch_parse_agent'], # type: ignore[index]
+            verbose=True,
+            tools=[
+                GmailAnalysisTool(
+                    creds_path = self.gmail_creds,
+                    checkphish_api_key = self.checkphish_api
+                )
+            ]
+        )
+
+    @agent
+    def llm_analyser_agent(self) -> Agent:
+        return Agent(
+            config=self.agents_config['llm_analyser_agent'], # type: ignore[index]
+            verbose=True,
+            tools=[
+                GeminiAnalysisTool(api_key=self.gemini_api)
+            ]
+        )
     
-    # If you would like to add tools to your agents, you can learn more about it here:
-    # https://docs.crewai.com/concepts/agents#agent-tools
     @agent
-    def researcher(self) -> Agent:
+    def security_advisor_agent(self) -> Agent:
         return Agent(
-            config=self.agents_config['researcher'], # type: ignore[index]
-            verbose=True
+            config=self.agents_config['security_advisor_agent'],
+            verbose=True,
+            tools=[
+                ReportGeneratorTool()
+            ]
         )
 
-    @agent
-    def reporting_analyst(self) -> Agent:
-        return Agent(
-            config=self.agents_config['reporting_analyst'], # type: ignore[index]
-            verbose=True
-        )
+    # Tasks START :)
 
-    # To learn more about structured task outputs,
-    # task dependencies, and task callbacks, check out the documentation:
-    # https://docs.crewai.com/concepts/tasks#overview-of-a-task
     @task
-    def research_task(self) -> Task:
+    def email_fetch_and_parse_task(self) -> Task:
         return Task(
-            config=self.tasks_config['research_task'], # type: ignore[index]
+            config=self.tasks_config['email_fetch_and_parse_task'],
+             agent=self.email_fetch_parse_agent() # type: ignore[index]
         )
 
     @task
-    def reporting_task(self) -> Task:
+    def content_analysis_via_llms_task(self) -> Task:
         return Task(
-            config=self.tasks_config['reporting_task'], # type: ignore[index]
-            output_file='report.md'
+            config=self.tasks_config['content_analysis_via_llms_task'], # type: ignore[index]
+            agent=self.llm_analyser_agent(),
+            context=[self.email_fetch_and_parse_task()]
+        )
+    
+    @task
+    def security_expert_recommendation_task(self) -> Task:
+        return Task(
+            config=self.tasks_config['security_expert_recommendation_task'], # type: ignore[index]
+            agent=self.security_advisor_agent(),
+            context=[self.email_fetch_and_parse_task(), self.content_analysis_via_llms_task()]
+
         )
 
     @crew
@@ -60,5 +93,13 @@ class Phisherman():
             tasks=self.tasks, # Automatically created by the @task decorator
             process=Process.sequential,
             verbose=True,
+            memory=True,
+            embedder={
+                "provider": "google",
+                "config": {
+                    "model": "models/embedding-001",
+                    "api_key": self.gemini_api
+                }
+            }
             # process=Process.hierarchical, # In case you wanna use that instead https://docs.crewai.com/how-to/Hierarchical/
         )

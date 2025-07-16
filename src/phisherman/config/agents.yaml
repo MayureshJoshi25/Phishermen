@@ -12,7 +12,7 @@ email_fetch_parse_agent:
   verbose: true
   allow_delegation: false
 
-llm_analyser:
+llm_analyser_agent:
   role: >
     LLM phishing email analysing agent with expertise in utilizing CheckPhish API and LLMs for insights.
   goal: >
@@ -28,7 +28,7 @@ llm_analyser:
   allow_delegation: false
   
 
-security_advisor:
+security_advisor_agent:
   role: >
     Security Advisor based on analysed output from the LLM
   goal: >
