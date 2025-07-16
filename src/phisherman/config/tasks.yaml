@@ -1,0 +1,96 @@
+# PhishHunt Crew Tasks Configuration
+email_fetch_and_parse_task:
+  description: >
+    Connect to Gmail API to retrieve the specified email and extract ONLY the email headers.
+    
+    EMAIL RETRIEVAL:
+    - Connect using proper OAuth2 authentication
+    - Extract the specified email using the provided email ID
+    - Handle API rate limits appropriately
+    
+    HEADER EXTRACTION:
+    - Extract ALL email headers as raw key-value pairs
+    - Include standard headers (From, To, Subject, Date, Message-ID, etc.)
+    - Include authentication headers (SPF, DKIM, DMARC, Authentication-Results)
+    - Include routing headers (Received, Return-Path, Reply-To)
+    - Include SpamAssassin headers if present (X-Spam-Score, X-Spam-Status, etc.)
+    - Include any custom or vendor-specific headers
+    
+    Do NOT perform any analysis, interpretation, or risk assessment. Simply extract and return
+    the raw header data for downstream analysis by the LLM analysis agent.
+  expected_output: >
+    Raw email headers as a clean JSON structure containing:
+    - Complete email headers as key-value pairs
+    - Email message ID and thread ID for reference
+    - No analysis, interpretation, or risk scoring
+    - Headers formatted exactly as received from Gmail API
+    All data should be structured for easy consumption by the analysis agent.
+  agent: email_fetch_parse_agent
+
+content_analysis_via_llms_task:
+  description: >
+    Analyze the email content provided by the email_fetch_parse_agent using advanced AI techniques and external APIs to detect 
+    phishing indicators and security threats:
+    
+    CONTENT ANALYSIS:
+    - Social engineering tactic identification
+    - Language pattern analysis for phishing signatures
+    - Brand impersonation detection
+    - Urgency and pressure tactic identification
+    - Credential harvesting attempt detection
+    
+    EXTERNAL API INTEGRATION:
+    - Use CheckPhish API to scan any URLs found in email content
+    - Cross-reference findings with threat intelligence
+    - Attachment risk assessment
+    
+    LLM PROCESSING:
+    - Refer to the output of the email_fetch_parse_agent agent and based on that analyse.
+    - Utilize Gemini Flash for advanced content analysis
+    - Apply machine learning models for threat detection
+    - Generate confidence scores for identified threats
+  expected_output: >
+    A comprehensive content analysis (NO REPORT JUST INFO) including:
+    - List of identified phishing indicators with confidence scores
+    - URL analysis results from CheckPhish API
+    - Attachment risk assessment details
+    - Social engineering tactics detected
+    - Brand impersonation analysis
+    - Overall content risk score (1-10 scale)
+    - Specific threat types identified (credential theft, malware, scam categories)
+
+    This analysis IS TO BE SENT TO THE security_advisor agent so arrange information in such a way that security_advisor can understand and do its tasks.
+  agent: llm_analyser
+  context: [email_fetch_and_parse_task]
+
+security_expert_recommendation_task:
+  description: >
+    Synthesize all analysis results from email fetching/parsing and content analysis recieved from the llm_analyser agent
+    to provide comprehensive security recommendations and generate a detailed markdown report:
+    
+    ANALYSIS SYNTHESIS:
+    - Combine header analysis and content analysis results received from llm_analyser agent.
+    - Calculate overall threat level and risk assessment
+    - Identify specific risk factors and potential impact
+    
+    RECOMMENDATION GENERATION:
+    - Immediate action recommendations (Report/Quarantine/Block)
+    - Long-term security measures
+    - User education recommendations
+    - Follow-up monitoring suggestions
+    
+    REPORT GENERATION:
+    - Create comprehensive markdown security report
+    - Include executive summary and technical details
+    - Provide actionable next steps for security teams
+  expected_output: >
+    A comprehensive security advisory report in markdown format containing:
+    - Executive summary of threat assessment
+    - Combined risk score (1-10 scale) with detailed justification
+    - Immediate action recommendations with specific steps
+    - Detailed threat breakdown by category (header vs content analysis)
+    - User education recommendations tailored to identified threats
+    - Technical implementation details for security teams
+    - Monitoring and follow-up action plan
+  agent: security_advisor
+  context: [email_fetch_and_parse_task, content_analysis_via_llms_task]

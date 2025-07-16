@@ -1,0 +1,23 @@
+[project]
+name = "phisherman"
+version = "0.1.0"
+description = "phisherman using crewAI"
+authors = [{ name = "Your Name", email = "you@example.com" }]
+requires-python = ">=3.10,<3.14"
+dependencies = [
+    "crewai[tools]>=0.140.0,<1.0.0"
+]
+
+[project.scripts]
+phisherman = "phisherman.main:run"
+run_crew = "phisherman.main:run"
+train = "phisherman.main:train"
+replay = "phisherman.main:replay"
+test = "phisherman.main:test"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.crewai]
+type = "crew"
